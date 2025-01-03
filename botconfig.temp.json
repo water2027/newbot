@@ -6,5 +6,6 @@
     "email":"",
     "password":"",
     "timeInterval":1,
-    "url":"https://ssemarket.cn/new/postdetail/%d"
+    "url":"https://ssemarket.cn/new/postdetail/%d",
+    "startNum":1
 }

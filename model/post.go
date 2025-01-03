@@ -1,21 +1,23 @@
 package model
 
-import (
-	"time"
-)
-
 // Post [...]
 type Post struct {
-	PostID     int       `gorm:"primary_key;column:postID"`
-	UserID     int       `gorm:"index:postuser;column:userID;type:int"`
-	Partition  string    `gorm:"column:partition;type:varchar(10)"`
-	Title      string    `gorm:"column:title;type:varchar(20)"`
-	Ptext      string    `gorm:"column:ptext;type:varchar(5000)"`
-	CommentNum int       `gorm:"column:comment_num;type:int"`
-	LikeNum    int       `gorm:"column:like_num;type:int"`
-	BrowseNum  int       `gorm:"column:browse_num;type:int"`
-	PostTime   time.Time `gorm:"column:post_time;type:datetime"`
-	Heat       float64   `gorm:"column:heat;type:double"`
-	Photos     string    `gorm:"column:photos;type:varchar(1000)"`
-	Tag        string    `gorm:"column:tag;type:varchar(100)"`
+    PostID        int       `json:"PostID"`
+    UserID        int       `json:"UserID"`
+    UserName      string    `json:"UserName"`
+    UserScore     int       `json:"UserScore"`
+    UserTelephone string    `json:"UserTelephone"`
+    UserAvatar    string    `json:"UserAvatar"`
+    UserIdentity  string    `json:"UserIdentity"`
+    Title         string    `json:"Title"`
+    Content       string    `json:"Content"`
+    Like          int       `json:"Like"`
+    Comment       int       `json:"Comment"`
+    Browse        int       `json:"Browse"`
+    Heat          int       `json:"Heat"`
+    PostTime      string    `json:"PostTime"`
+    IsSaved       bool      `json:"IsSaved"`
+    IsLiked       bool      `json:"IsLiked"`
+    Photos        string    `json:"Photos"`
+    Tag           string    `json:"Tag"`
 }

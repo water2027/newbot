@@ -65,7 +65,6 @@ func GetPosts(postChannel chan model.Post, config *config.BotConfig) {
 
 	var posts []model.Post
 	body, err = io.ReadAll(resp.Body)
-	log.Println(string(body))
 	if err != nil {
 		log.Println(err)
 		return

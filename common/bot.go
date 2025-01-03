@@ -34,7 +34,7 @@ var PostChan = make(chan model.Post)
 // 防止微信自动退出登录
 func keepAlive(ctx context.Context, bot *openwechat.Self) {
 	defer wg.Done()
-	ticker := time.NewTicker(time.Minute * 1)
+	ticker := time.NewTicker(time.Minute * 5)
 	defer ticker.Stop()
 	for {
 		select {
@@ -90,7 +90,6 @@ func StartBot() {
 func runBot(ctx context.Context) {
 	defer wg.Done()
 	var err error
-	log.Println("startBot")
 	bot := openwechat.DefaultBot(openwechat.Desktop)
 
 	var errorChan = make(chan error, 1)
@@ -135,21 +134,24 @@ func runBot(ctx context.Context) {
 	//消息处理函数,接受到信息时触发
 	//之后可以考虑接入大模型/连接数据库
 	bot.MessageHandler = func(msg *openwechat.Message) {
-		log.Println(msg, msg.IsSendByGroup())
 		content := msg.Content
 		if msg.IsSendByGroup() {
 			if strings.HasPrefix(content, "@机器人") {
-				log.Println(content)
 				trimmedMessage := strings.TrimPrefix(content, "@机器人")
 				IDRecieved := strings.Split(trimmedMessage, " ")[0]
 				cleanedInput := strings.ReplaceAll(IDRecieved, "\u2005", "")
 				ID, err := strconv.Atoi(cleanedInput)
-				log.Println(ID)
 				if err != nil {
 					log.Println(err)
 					return
 				}
-				msg.ReplyText(fmt.Sprintf(config.Url, ID))
+				// 在这里要回复帖子链接跟帖子内容
+				post, err := sseapi.GetPostContent(ID, &config)
+				if err != nil {
+					log.Println(err)
+					return
+				}
+				msg.ReplyText(fmt.Sprintf(config.Url, ID) + "\n" + post.Title + "\n" + post.Content)
 			}
 		} else if msg.IsSendByFriend() {
 			if strings.HasPrefix(content, "#auth ") {
@@ -284,17 +286,20 @@ func runBot(ctx context.Context) {
 func sentPostToGroup(ctx context.Context, str string) {
 	defer wg.Done()
 	for {
-		config := config.GetBotConfig()
-		urlstr := config.Url
+		botConfig := config.GetBotConfig()
+		urlstr := botConfig.Url
 		select {
 		case post := <-PostChan:
 			for _, group := range getGroup() {
-				url := fmt.Sprintf(urlstr, post.PostID)
-				msg := fmt.Sprintf(str, post.Title, url)
-				log.Println(msg)
-				_, err := group.SendText(msg)
-				if err != nil {
-					log.Println(err)
+				if post.PostID > botConfig.StartNum {
+					botConfig.StartNum = post.PostID
+					url := fmt.Sprintf(urlstr, post.PostID)
+					msg := fmt.Sprintf(str, post.Title, url)
+					_, err := group.SendText(msg)
+					if err != nil {
+						log.Println(err)
+					}
+					config.UpdateBotConfig(botConfig)
 				}
 			}
 		case <-ctx.Done():

@@ -16,12 +16,12 @@ type BotConfig struct {
 	Telephone       string `json:"telephone"`
 	Email           string `json:"email"`
 	Password        string `json:"password"`
+	StartNum        int `json:"startNum"`
 }
 
 var botConfig BotConfig
 
 func InitBotConfig() {
-	log.Println("init")
 	jsonFile, err := os.Open("botconfig.json")
 	if err != nil {
 		log.Println(err)
@@ -30,10 +30,7 @@ func InitBotConfig() {
 	defer jsonFile.Close()
 	byteValue, _ := io.ReadAll(jsonFile)
 	json.Unmarshal(byteValue, &botConfig)
-	code := os.Getenv("AUTH_CODE")
-	if code != "" {
-		botConfig.AuthCode = code
-	}else{
+	if botConfig.AuthCode == "" {
 		botConfig.AuthCode = "qstxdy"
 	}
 }

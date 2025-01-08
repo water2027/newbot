@@ -34,7 +34,7 @@ var PostChan = make(chan model.Post)
 // 防止微信自动退出登录
 func keepAlive(ctx context.Context, bot *openwechat.Self) {
 	defer wg.Done()
-	ticker := time.NewTicker(time.Minute * 5)
+	ticker := time.NewTicker(time.Minute * 10)
 	defer ticker.Stop()
 	for {
 		select {
@@ -160,9 +160,9 @@ func runBot(ctx context.Context) {
 				trimmedMessage = strings.ReplaceAll(trimmedMessage, "\u2005", "")
 				trimmedMessage = strings.ReplaceAll(trimmedMessage, " ", "")
 				// 如果authUserID不为空
-				if authUserID != ""{
+				if authUserID != "" {
 					msg.ReplyText("已有管理员")
-					return;
+					return
 				}
 				if trimmedMessage == config.AuthCode {
 					sender, err := msg.Sender()
@@ -290,8 +290,8 @@ func sentPostToGroup(ctx context.Context, str string) {
 		urlstr := botConfig.Url
 		select {
 		case post := <-PostChan:
-			for _, group := range getGroup() {
-				if post.PostID > botConfig.StartNum {
+			if post.PostID > botConfig.StartNum {
+				for _, group := range getGroup() {
 					botConfig.StartNum = post.PostID
 					url := fmt.Sprintf(urlstr, post.PostID)
 					msg := fmt.Sprintf(str, post.Title, url)
@@ -327,12 +327,8 @@ func RemoveGroup(name string) {
 	for i, g := range targetGroup {
 		if g.NickName == name {
 			targetGroup = append(targetGroup[:i], targetGroup[i+1:]...)
-			fmt.Println(g.NickName)
 			break
 		}
-	}
-	for i, g := range targetGroup {
-		fmt.Println(i, g.NickName)
 	}
 }
 
@@ -343,7 +339,7 @@ func updateUrl(url string) {
 }
 
 func StopBot() {
-	fmt.Println("startstop")
+	fmt.Println("start stop")
 	if cancel != nil {
 		cancel()
 	}

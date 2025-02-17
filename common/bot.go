@@ -4,8 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"strconv"
-	"strings"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -20,7 +19,6 @@ import (
 // 目标群
 var targetGroup []*openwechat.Group
 var mu sync.Mutex
-var authUserID string
 
 var (
 	ctx    context.Context
@@ -41,7 +39,17 @@ func keepAlive(ctx context.Context, bot *openwechat.Self) {
 		case <-ctx.Done():
 			log.Println("keepAlive stop")
 			return
-		case <-ticker.C:
+		default:
+		}
+		randomMinutes := time.Duration(10+rand.Intn(11)) * time.Minute // 10-20分钟
+		timer := time.NewTimer(randomMinutes)
+
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			log.Println("keepAlive stop")
+			return
+		case <-timer.C:
 			heartBeat(bot)
 		}
 	}
@@ -133,137 +141,7 @@ func runBot(ctx context.Context) {
 
 	//消息处理函数,接受到信息时触发
 	//之后可以考虑接入大模型/连接数据库
-	bot.MessageHandler = func(msg *openwechat.Message) {
-		content := msg.Content
-		if msg.IsSendByGroup() {
-			if strings.HasPrefix(content, "@机器人") {
-				trimmedMessage := strings.TrimPrefix(content, "@机器人")
-				IDRecieved := strings.Split(trimmedMessage, " ")[0]
-				cleanedInput := strings.ReplaceAll(IDRecieved, "\u2005", "")
-				ID, err := strconv.Atoi(cleanedInput)
-				if err != nil {
-					log.Println(err)
-					return
-				}
-				// 在这里要回复帖子链接跟帖子内容
-				post, err := sseapi.GetPostContent(ID, &config)
-				if err != nil {
-					log.Println(err)
-					return
-				}
-				msg.ReplyText(fmt.Sprintf(config.Url, ID) + "\n" + post.Title + "\n" + post.Content)
-			}
-		} else if msg.IsSendByFriend() {
-			if strings.HasPrefix(content, "#auth ") {
-				//授权
-				trimmedMessage := strings.TrimPrefix(content, "#auth ")
-				trimmedMessage = strings.ReplaceAll(trimmedMessage, "\u2005", "")
-				trimmedMessage = strings.ReplaceAll(trimmedMessage, " ", "")
-				// 如果authUserID不为空
-				if authUserID != "" {
-					msg.ReplyText("已有管理员")
-					return
-				}
-				if trimmedMessage == config.AuthCode {
-					sender, err := msg.Sender()
-					if err != nil {
-						msg.ReplyText("授权失败:" + err.Error())
-						return
-					}
-					authUserID = sender.ID()
-					msg.ReplyText("授权成功")
-				}
-			} else if strings.HasPrefix(content, "#stop") {
-				//停止
-				sender, err := msg.Sender()
-				if err != nil {
-					msg.ReplyText("停止失败:" + err.Error())
-					return
-				}
-				if sender.ID() == authUserID {
-					msg.ReplyText("停止成功")
-					cancel()
-				}
-			} else if strings.HasPrefix(content, "#restart") {
-				//重启
-				sender, err := msg.Sender()
-				if err != nil {
-					msg.ReplyText("重启失败:" + err.Error())
-					return
-				}
-				if sender.ID() == authUserID {
-					msg.ReplyText("重启成功")
-					RestartBot()
-				}
-			} else if strings.HasPrefix(content, "#addGroup ") {
-				//添加群组
-				sender, err := msg.Sender()
-				if err != nil {
-					msg.ReplyText("添加群组失败:" + err.Error())
-					return
-				}
-				if sender.ID() == authUserID {
-					trimmedMessage := strings.TrimPrefix(content, "#addGroup ")
-					trimmedMessage = strings.ReplaceAll(trimmedMessage, "\u2005", "")
-					trimmedMessage = strings.ReplaceAll(trimmedMessage, " ", "")
-					group := groups.GetByNickName(trimmedMessage)
-					if group == nil {
-						msg.ReplyText("未找到群组")
-						return
-					}
-					AddGroup(group)
-					msg.ReplyText("添加群组成功")
-				}
-			} else if strings.HasPrefix(content, "#removeGroup ") {
-				//移除群组
-				sender, err := msg.Sender()
-				if err != nil {
-					msg.ReplyText("移除群组失败:" + err.Error())
-					return
-				}
-				if sender.ID() == authUserID {
-					trimmedMessage := strings.TrimPrefix(content, "#removeGroup ")
-					trimmedMessage = strings.ReplaceAll(trimmedMessage, "\u2005", "")
-					trimmedMessage = strings.ReplaceAll(trimmedMessage, " ", "")
-					RemoveGroup(trimmedMessage)
-					msg.ReplyText("移除群组成功")
-				}
-			} else if strings.HasPrefix(content, "#notice") {
-				//发送通知
-				sender, err := msg.Sender()
-				if err != nil {
-					msg.ReplyText("发送通知失败:" + err.Error())
-					return
-				}
-				if sender.ID() == authUserID {
-					trimmedMessage := strings.TrimPrefix(content, "#notice")
-					trimmedMessage = strings.ReplaceAll(trimmedMessage, "\u2005", "")
-					trimmedMessage = strings.ReplaceAll(trimmedMessage, " ", "")
-					for _, group := range getGroup() {
-						_, err := group.SendText(trimmedMessage)
-						if err != nil {
-							log.Println(err)
-						}
-					}
-					msg.ReplyText("发送通知成功")
-				}
-			} else if strings.HasPrefix(content, "#setUrl") {
-				//设置url
-				sender, err := msg.Sender()
-				if err != nil {
-					msg.ReplyText("设置url失败:" + err.Error())
-					return
-				}
-				if sender.ID() == authUserID {
-					trimmedMessage := strings.TrimPrefix(content, "#setUrl")
-					trimmedMessage = strings.ReplaceAll(trimmedMessage, "\u2005", "")
-					trimmedMessage = strings.ReplaceAll(trimmedMessage, " ", "")
-					updateUrl(trimmedMessage)
-					msg.ReplyText("设置url成功")
-				}
-			}
-		}
-	}
+	bot.MessageHandler = nil
 
 	go func() {
 		errorChan <- bot.Block()
@@ -295,7 +173,9 @@ func sentPostToGroup(ctx context.Context, str string) {
 					botConfig.StartNum = post.PostID
 					url := fmt.Sprintf(urlstr, post.PostID)
 					msg := fmt.Sprintf(str, post.Title, url)
+
 					_, err := group.SendText(msg)
+					time.Sleep(5 * time.Second)
 					if err != nil {
 						log.Println(err)
 					}
@@ -330,12 +210,6 @@ func RemoveGroup(name string) {
 			break
 		}
 	}
-}
-
-func updateUrl(url string) {
-	newConfig := config.GetBotConfig()
-	newConfig.Url = url
-	config.UpdateBotConfig(newConfig)
 }
 
 func StopBot() {

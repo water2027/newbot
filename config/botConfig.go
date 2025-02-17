@@ -10,7 +10,6 @@ import (
 type BotConfig struct {
 	TargetGroupName []string `json:"targetGroupName"` //目标群名
 	Str             string `json:"str"` //格式化输出的字符串
-	AuthCode		string `json:"authCode"` //授权码，可以考虑存在环境变量里
 	Url				string `json:"url"` //sse的url
 	TimeInterval 	int `json:"timeInterval"`
 	Telephone       string `json:"telephone"`
@@ -30,9 +29,6 @@ func InitBotConfig() {
 	defer jsonFile.Close()
 	byteValue, _ := io.ReadAll(jsonFile)
 	json.Unmarshal(byteValue, &botConfig)
-	if botConfig.AuthCode == "" {
-		botConfig.AuthCode = "qstxdy"
-	}
 }
 
 func GetBotConfig() BotConfig {
